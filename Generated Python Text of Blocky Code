@@ -1,0 +1,350 @@
+import vex
+import drivetrain
+import smartdrive
+import sys
+import math
+
+#region config
+brain      = vex.Brain()
+motor_BR_  = vex.Motor(vex.Ports.PORT1, vex.GearSetting.RATIO18_1, False)
+motor_BL_  = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
+motor_TL_  = vex.Motor(vex.Ports.PORT3, vex.GearSetting.RATIO18_1, False)
+motor_TR   = vex.Motor(vex.Ports.PORT4, vex.GearSetting.RATIO18_1, False)
+arm2       = vex.Motor(vex.Ports.PORT5, vex.GearSetting.RATIO18_1, True)
+claw       = vex.Motor(vex.Ports.PORT7, vex.GearSetting.RATIO18_1, False)
+arm        = vex.Motor(vex.Ports.PORT8, vex.GearSetting.RATIO18_1, False)
+inertial_9 = vex.Inertial(vex.Ports.PORT9)
+encoder    = vex.Encoder(brain.three_wire_port.a)
+limit_C    = vex.Limit(brain.three_wire_port.c)
+pot_G      = vex.Pot(brain.three_wire_port.g)
+line_H     = vex.Line(brain.three_wire_port.h)
+con        = vex.Controller(vex.ControllerType.PRIMARY)
+#endregion config
+
+x = None
+distance = None
+s = None
+Kp = None
+Kpr = None
+radius = None
+maxspeed = None
+rotation = None
+error = None
+capspeed = None
+speed = None
+r = None
+l = None
+rotatespeedrev = None
+
+def Arm_height():
+  global x, distance, s, Kp, Kpr, radius, maxspeed, rotation, error, capspeed, speed, r, l, rotatespeedrev
+  arm2.start_spin_for(vex.FORWARD, (float((180 * distance)) / (0.75 * math.pi)), vex.DEGREES)
+  arm.start_spin_for(vex.FORWARD, (float((180 * distance)) / (0.75 * math.pi)), vex.DEGREES)
+
+competition = vex.Competition()
+
+def auto():
+  global x, distance, s, Kp, Kpr, radius, maxspeed, rotation, error, capspeed, speed, r, l, rotatespeedrev
+  if s == 0:
+    # Red Team, Big goal
+    brain.screen.print_line(2, 'RB')
+    arm2.set_velocity(75, vex.PERCENT)
+    arm.set_velocity(75, vex.PERCENT)
+    claw.set_velocity(50, vex.PERCENT)
+    claw.spin(vex.FORWARD, 50, vex.PERCENT)
+    vex.wait(1.25,vex.SECONDS)
+    distance = 2
+    Arm_height()
+    distance = 1.6
+    Drive_LR()
+    distance = 11
+    DriveFB()
+    claw.spin_for(vex.REVERSE, 40, vex.DEGREES)
+    claw.start_spin_for(vex.REVERSE, 190, vex.DEGREES)
+    distance = -25
+    DriveFB()
+    distance = 0.6
+    Drive_LR()
+    rotation = 90
+    Rotate()
+    distance = 4
+    Arm_height()
+    distance = 19.5
+    DriveFB()
+    claw.spin(vex.FORWARD, 50, vex.PERCENT)
+    vex.wait(1,vex.SECONDS)
+    maxspeed = 40
+    rotation = -123
+    Rotate()
+    distance = 1.5
+    Arm_height()
+    maxspeed = 60
+    distance = 31.5
+    DriveFB()
+    claw.start_spin_for(vex.REVERSE, 240, vex.DEGREES)
+    vex.wait(0.5,vex.SECONDS)
+    distance = -10
+    DriveFB()
+  elif s == 1:
+    # Red Team, Little goal
+    brain.screen.print_line(2, 'RS')
+    claw.start_spin_for(vex.FORWARD, 180, vex.DEGREES)
+    motor_TL_.spin(vex.FORWARD, (-35), vex.PERCENT)
+    motor_TR.spin(vex.FORWARD, 35, vex.PERCENT)
+    motor_BL_.spin(vex.FORWARD, (-35), vex.PERCENT)
+    motor_BR_.spin(vex.FORWARD, 35, vex.PERCENT)
+    vex.wait(0.75,vex.SECONDS)
+    motor_BR_.stop(vex.BrakeType.BRAKE)
+    motor_BL_.stop(vex.BrakeType.BRAKE)
+    motor_TL_.stop(vex.BrakeType.BRAKE)
+    motor_TR.stop(vex.BrakeType.BRAKE)
+    vex.wait(0.5,vex.SECONDS)
+  elif s == 2:
+    # Blue Team, Big goal
+    brain.screen.print_line(2, 'BB')
+    arm2.set_velocity(75, vex.PERCENT)
+    arm.set_velocity(75, vex.PERCENT)
+    claw.set_velocity(50, vex.PERCENT)
+    claw.spin(vex.FORWARD, 50, vex.PERCENT)
+    vex.wait(1.25,vex.SECONDS)
+    distance = 2
+    Arm_height()
+    distance = -1.6
+    Drive_LR()
+    distance = 11
+    DriveFB()
+    claw.spin_for(vex.REVERSE, 40, vex.DEGREES)
+    claw.start_spin_for(vex.REVERSE, 190, vex.DEGREES)
+    distance = -25
+    DriveFB()
+    distance = -0.6
+    Drive_LR()
+    rotation = -90
+    Rotate()
+    distance = 4
+    Arm_height()
+    claw.start_spin_for(vex.REVERSE, 40, vex.DEGREES)
+    distance = 21
+    DriveFB()
+    claw.spin(vex.FORWARD, 50, vex.PERCENT)
+    vex.wait(1,vex.SECONDS)
+    maxspeed = 40
+    rotation = 124
+    Rotate()
+    distance = 1
+    Arm_height()
+    maxspeed = 60
+    distance = 31.5
+    DriveFB()
+    claw.start_spin_for(vex.REVERSE, 240, vex.DEGREES)
+    vex.wait(0.5,vex.SECONDS)
+    distance = -10
+    DriveFB()
+  elif s == 3:
+    # Blue Team, Little goal
+    brain.screen.print_line(2, 'BS')
+    claw.start_spin_for(vex.FORWARD, 180, vex.DEGREES)
+    motor_TL_.spin(vex.FORWARD, (-35), vex.PERCENT)
+    motor_TR.spin(vex.FORWARD, 35, vex.PERCENT)
+    motor_BL_.spin(vex.FORWARD, (-35), vex.PERCENT)
+    motor_BR_.spin(vex.FORWARD, 35, vex.PERCENT)
+    vex.wait(0.75,vex.SECONDS)
+    motor_BR_.stop(vex.BrakeType.BRAKE)
+    motor_BL_.stop(vex.BrakeType.BRAKE)
+    motor_TL_.stop(vex.BrakeType.BRAKE)
+    motor_TR.stop(vex.BrakeType.BRAKE)
+    vex.wait(0.5,vex.SECONDS)
+competition.autonomous(auto)
+
+def Drive_LR():
+  global x, distance, s, Kp, Kpr, radius, maxspeed, rotation, error, capspeed, speed, r, l, rotatespeedrev
+  encoder.set_rotation(0, vex.DEGREES)
+  motor_TL_.spin(vex.FORWARD, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  motor_BL_.spin(vex.REVERSE, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  motor_TR.spin(vex.FORWARD, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  motor_BR_.spin(vex.REVERSE, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  vex.wait(0.25,vex.SECONDS)
+  while True:
+    error = (float((distance * 180)) / ((radius * math.pi) * math.sqrt(2)) + encoder.rotation(vex.DEGREES)) + float((1.5 * (float(math.fabs(distance)) / distance))) / Kp
+    if math.fabs(encoder.rotation(vex.DEGREES) * Kp) + 20 > maxspeed:
+      capspeed = maxspeed
+    else:
+      capspeed = math.fabs(encoder.rotation(vex.DEGREES) * Kp) + 20
+    if math.fabs(error) * Kp > capspeed:
+      speed = capspeed * (float(math.fabs(distance)) / distance)
+    else:
+      speed = error * Kp
+    motor_TL_.spin(vex.FORWARD, speed, vex.PERCENT)
+    motor_BL_.spin(vex.REVERSE, speed, vex.PERCENT)
+    motor_TR.spin(vex.FORWARD, speed, vex.PERCENT)
+    motor_BR_.spin(vex.REVERSE, speed, vex.PERCENT)
+    if math.fabs(encoder.rotation(vex.DEGREES)) >= math.fabs(float((distance * 180)) / ((radius * math.pi) * math.sqrt(2))):
+      break
+  motor_TL_.set_velocity(0, vex.PERCENT)
+  motor_BL_.set_velocity(0, vex.PERCENT)
+  motor_TR.set_velocity(0, vex.PERCENT)
+  motor_BR_.set_velocity(0, vex.PERCENT)
+  motor_TL_.stop(vex.BrakeType.HOLD)
+  motor_TR.stop(vex.BrakeType.HOLD)
+  motor_BL_.stop(vex.BrakeType.HOLD)
+  motor_BR_.stop(vex.BrakeType.HOLD)
+  if True:
+    return
+
+def DriveFB():
+  global x, distance, s, Kp, Kpr, radius, maxspeed, rotation, error, capspeed, speed, r, l, rotatespeedrev
+  encoder.set_rotation(0, vex.DEGREES)
+  motor_TL_.spin(vex.FORWARD, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  motor_BL_.spin(vex.FORWARD, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  motor_TR.spin(vex.REVERSE, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  motor_BR_.spin(vex.REVERSE, (15 * (float(math.fabs(distance)) / distance)), vex.PERCENT)
+  vex.wait(0.25,vex.SECONDS)
+  while True:
+    error = (float((distance * 180)) / ((radius * math.pi) * math.sqrt(2)) + encoder.rotation(vex.DEGREES)) + float((1.5 * (float(math.fabs(distance)) / distance))) / Kp
+    if math.fabs(encoder.rotation(vex.DEGREES) * Kp) + 20 > maxspeed:
+      capspeed = maxspeed
+    else:
+      capspeed = math.fabs(encoder.rotation(vex.DEGREES) * Kp) + 20
+    if math.fabs(error) * Kp > capspeed:
+      speed = capspeed * (float(math.fabs(distance)) / distance)
+    else:
+      speed = error * Kp
+    motor_TL_.spin(vex.FORWARD, speed, vex.PERCENT)
+    motor_BL_.spin(vex.FORWARD, speed, vex.PERCENT)
+    motor_TR.spin(vex.REVERSE, speed, vex.PERCENT)
+    motor_BR_.spin(vex.REVERSE, speed, vex.PERCENT)
+    if math.fabs(encoder.rotation(vex.DEGREES)) >= math.fabs(float((distance * 180)) / ((radius * math.pi) * math.sqrt(2))):
+      break
+  motor_TL_.set_velocity(0, vex.PERCENT)
+  motor_BL_.set_velocity(0, vex.PERCENT)
+  motor_TR.set_velocity(0, vex.PERCENT)
+  motor_BR_.set_velocity(0, vex.PERCENT)
+  motor_TL_.stop(vex.BrakeType.HOLD)
+  motor_TR.stop(vex.BrakeType.HOLD)
+  motor_BL_.stop(vex.BrakeType.HOLD)
+  motor_BR_.stop(vex.BrakeType.HOLD)
+  if True:
+    return
+
+def driver():
+  global x, distance, s, Kp, Kpr, radius, maxspeed, rotation, error, capspeed, speed, r, l, rotatespeedrev
+  x = 1
+  while True:
+    if con.buttonB.pressing():
+      x = 2
+    if con.buttonA.pressing():
+      x = 1
+    if con.buttonR2.pressing() and limit_C.pressing():
+      arm.stop(vex.BrakeType.HOLD)
+      arm2.stop(vex.BrakeType.HOLD)
+    elif con.buttonR1.pressing():
+      arm.spin(vex.FORWARD, 100, vex.PERCENT)
+      arm2.spin(vex.FORWARD, 100, vex.PERCENT)
+    elif con.buttonR2.pressing():
+      arm.spin(vex.REVERSE, 100, vex.PERCENT)
+      arm2.spin(vex.REVERSE, 100, vex.PERCENT)
+    else:
+      arm.stop(vex.BrakeType.HOLD)
+      arm2.stop(vex.BrakeType.HOLD)
+    if con.buttonL1.pressing():
+      claw.spin(vex.FORWARD, 50, vex.PERCENT)
+    elif con.buttonL2.pressing():
+      claw.spin(vex.REVERSE, 50, vex.PERCENT)
+    else:
+      claw.stop(vex.BrakeType.HOLD)
+    motor_TL_.spin(vex.FORWARD, (float(((con.axis3.position(vex.PERCENT) + con.axis4.position(vex.PERCENT)) + con.axis1.position(vex.PERCENT))) / x), vex.PERCENT)
+    motor_TR.spin(vex.FORWARD, (float(((con.axis4.position(vex.PERCENT) - con.axis3.position(vex.PERCENT)) + con.axis1.position(vex.PERCENT))) / x), vex.PERCENT)
+    motor_BL_.spin(vex.REVERSE, (float(((con.axis4.position(vex.PERCENT) - con.axis3.position(vex.PERCENT)) - con.axis1.position(vex.PERCENT))) / x), vex.PERCENT)
+    motor_BR_.spin(vex.REVERSE, (float(((con.axis3.position(vex.PERCENT) + con.axis4.position(vex.PERCENT)) - con.axis1.position(vex.PERCENT))) / x), vex.PERCENT)
+competition.drivercontrol(driver)
+
+def Rotate():
+  global x, distance, s, Kp, Kpr, radius, maxspeed, rotation, error, capspeed, speed, r, l, rotatespeedrev
+  inertial_9.set_heading(180, vex.DEGREES)
+  motor_TL_.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  motor_TR.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  motor_BL_.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  motor_BR_.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  vex.wait(0.05,vex.SECONDS)
+  while True:
+    if rotation >= 0:
+      if rotation + 180 <= inertial_9.heading(vex.DEGREES):
+        break
+    if rotation < 0:
+      if rotation + 180 >= inertial_9.heading(vex.DEGREES):
+        break
+  motor_BR_.stop(vex.BrakeType.COAST)
+  motor_TR.stop(vex.BrakeType.COAST)
+  motor_BL_.stop(vex.BrakeType.COAST)
+  motor_TL_.stop(vex.BrakeType.COAST)
+  vex.wait(0.1,vex.SECONDS)
+  rotatespeedrev = 0
+  while True:
+    motor_TL_.spin(vex.REVERSE, rotatespeedrev, vex.PERCENT)
+    motor_TR.spin(vex.REVERSE, rotatespeedrev, vex.PERCENT)
+    motor_BL_.spin(vex.REVERSE, rotatespeedrev, vex.PERCENT)
+    motor_BR_.spin(vex.REVERSE, rotatespeedrev, vex.PERCENT)
+    if rotation >= 0 and Kpr * (inertial_9.heading(vex.DEGREES) - (rotation + 180)) > 20:
+      rotatespeedrev = 20
+    elif rotation < 0 and Kpr * (inertial_9.heading(vex.DEGREES) - (rotation + 180)) < -20:
+      rotatespeedrev = -20
+    else:
+      rotatespeedrev = Kpr * (inertial_9.heading(vex.DEGREES) - (rotation + 180))
+    if rotation >= 0 and (rotation + 180) - inertial_9.heading(vex.DEGREES) >= 0:
+      break
+    elif rotation < 0 and (rotation + 180) - inertial_9.heading(vex.DEGREES) <= 0:
+      break
+  motor_TL_.set_velocity(0, vex.PERCENT)
+  motor_BL_.set_velocity(0, vex.PERCENT)
+  motor_TR.set_velocity(0, vex.PERCENT)
+  motor_BR_.set_velocity(0, vex.PERCENT)
+  motor_TL_.stop(vex.BrakeType.HOLD)
+  motor_TR.stop(vex.BrakeType.HOLD)
+  motor_BL_.stop(vex.BrakeType.HOLD)
+  motor_BR_.stop(vex.BrakeType.HOLD)
+  if True:
+    return
+
+def RotateADD():
+  global x, distance, s, Kp, Kpr, radius, maxspeed, rotation, error, capspeed, speed, r, l, rotatespeedrev
+  inertial_9.set_heading(180, vex.DEGREES)
+  motor_TL_.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  motor_TR.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  motor_BL_.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  motor_BR_.spin(vex.FORWARD, (maxspeed * (float(math.fabs(rotation)) / rotation)), vex.PERCENT)
+  vex.wait(0.05,vex.SECONDS)
+  while True:
+    if rotation >= 0:
+      if rotation + 180 <= inertial_9.heading(vex.DEGREES):
+        break
+    if rotation < 0:
+      if rotation + 180 >= inertial_9.heading(vex.DEGREES):
+        break
+  if True:
+    return
+
+
+# main thread
+Kp = 0.25
+Kpr = 5
+radius = 2
+maxspeed = 60
+# in our arena, red is left and blue is right
+# facing with small closest
+s = -1
+while True:
+  if brain.screen.pressing():
+    if s >= 3:
+      s = 0
+    else:
+      s = s + 1
+    if s == 0:
+      brain.screen.print_line(1, 'Red team, Big goal')
+    elif s == 1:
+      brain.screen.print_line(1, 'Red team, Small goal')
+    elif s == 2:
+      brain.screen.print_line(1, 'Blue team, Big goal')
+    elif s == 3:
+      brain.screen.print_line(1, 'Blue team, Small goal')
+    vex.wait(1,vex.SECONDS)
+
